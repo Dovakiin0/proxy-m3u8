@@ -114,15 +114,31 @@ func M3U8ProxyHandler(c echo.Context) error {
 		return c.String(http.StatusInternalServerError, "Failed to create request to target server")
 	}
 
+	// Parse target URL to extract origin
+	parsedURL, _ := url.Parse(targetURL)
+	targetOrigin := parsedURL.Scheme + "://" + parsedURL.Host
+
+	// Set browser-like headers to bypass Cloudflare
+	req.Header.Set("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
 	req.Header.Set("Accept", "*/*")
+	req.Header.Set("Accept-Language", "en-US,en;q=0.9")
+	// Don't set Accept-Encoding manually - let Go's HTTP client handle compression automatically
+	req.Header.Set("Connection", "keep-alive")
+	req.Header.Set("Sec-Fetch-Dest", "empty")
+	req.Header.Set("Sec-Fetch-Mode", "cors")
+	req.Header.Set("Sec-Fetch-Site", "same-origin")
+	req.Header.Set("Sec-Ch-Ua", `"Not_A Brand";v="8", "Chromium";v="120", "Google Chrome";v="120"`)
+	req.Header.Set("Sec-Ch-Ua-Mobile", "?0")
+	req.Header.Set("Sec-Ch-Ua-Platform", `"Windows"`)
+
 	// if the referer is provided, set it in the request headers
 	if refererHeader != "" {
 		req.Header.Set("Referer", refererHeader)
 		req.Header.Set("Origin", refererHeader)
 	} else {
-		// use the default referer if not provided, for gogo and hianime, this is normally provided
-		req.Header.Set("Origin", "https://megaplay.buzz/")
-		req.Header.Set("Referer", "https://megaplay.buzz/")
+		// Use the target's own origin as referer to appear as same-origin request
+		req.Header.Set("Referer", targetOrigin+"/")
+		req.Header.Set("Origin", targetOrigin)
 	}
 
 	upstreamResp, err := utils.ProxyHTTPClient.Do(req)
@@ -162,10 +178,7 @@ func M3U8ProxyHandler(c echo.Context) error {
 
 	if (isM3U8 || isTS) && upstreamResp.StatusCode == http.StatusOK {
 		var transformedBodyBuffer bytes.Buffer
-		proxyRoutePath := c.Path()
-		if strings.HasPrefix(proxyRoutePath, "/") {
-			proxyRoutePath = strings.TrimPrefix(proxyRoutePath, "/")
-		}
+		proxyRoutePath := strings.TrimPrefix(c.Path(), "/")
 		urlPrefix := proxyRoutePath + "?url="
 
 		err = utils.ProcessM3U8Stream(bytes.NewReader(rawBodyBytes), &transformedBodyBuffer, targetURL, urlPrefix)
