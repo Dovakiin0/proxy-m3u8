@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"strings"
 
 	"github.com/joho/godotenv"
 	"github.com/labstack/echo/v4"
@@ -11,6 +10,7 @@ import (
 	"github.com/dovakiin0/proxy-m3u8/config"
 	"github.com/dovakiin0/proxy-m3u8/internal/handler"
 	mdlware "github.com/dovakiin0/proxy-m3u8/internal/middleware"
+	"github.com/dovakiin0/proxy-m3u8/internal/utils"
 )
 
 func init() {
@@ -28,7 +28,7 @@ func main() {
 	e.Pre(middleware.RemoveTrailingSlash())
 
 	e.Use(middleware.CORSWithConfig(middleware.CORSConfig{
-		AllowOrigins: getCorsDomain(),
+		AllowOrigins: utils.GetCorsDomain(),
 		AllowMethods: []string{echo.GET, echo.POST, echo.PUT, echo.DELETE, echo.OPTIONS},
 	}))
 
@@ -47,25 +47,4 @@ func main() {
 	port := config.Env.Port
 
 	e.Logger.Fatal(e.Start(fmt.Sprintf(":%s", port)))
-}
-
-func getCorsDomain() []string {
-	corsDomain := config.Env.CorsDomain
-
-	allowOrigins := []string{}
-	if corsDomain == "*" {
-		allowOrigins = append(allowOrigins, "*")
-	} else {
-		domains := strings.Split(corsDomain, ",")
-		for _, domain := range domains {
-			if strings.HasPrefix(domain, "http://") || strings.HasPrefix(domain, "https://") {
-				allowOrigins = append(allowOrigins, strings.TrimSuffix(domain, "/"))
-			} else {
-				allowOrigins = append(allowOrigins, "http://"+strings.TrimSuffix(domain, "/"))
-				allowOrigins = append(allowOrigins, "https://"+strings.TrimSuffix(domain, "/"))
-			}
-		}
-	}
-
-	return allowOrigins
 }
