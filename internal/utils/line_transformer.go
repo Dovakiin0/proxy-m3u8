@@ -35,7 +35,8 @@ func IsStaticFileExtension(path string) bool {
 
 // ProcessM3U8Stream reads an M3U8 stream, transforms relevant lines, and writes to the output stream.
 // proxyPrefix is the prefix for rewritten URLs, e.g., "m3u8-proxy?url="
-func ProcessM3U8Stream(reader io.Reader, writer io.Writer, originalM3U8URL, proxyPrefix string) error {
+// referer is propagated as a &referer= param on every rewritten URL so downstream requests carry the correct origin
+func ProcessM3U8Stream(reader io.Reader, writer io.Writer, originalM3U8URL, proxyPrefix, referer string) error {
 	scanner := bufio.NewScanner(reader)
 	parsedBaseURL, err := url.Parse(originalM3U8URL)
 	if err != nil {
@@ -56,6 +57,11 @@ func ProcessM3U8Stream(reader io.Reader, writer io.Writer, originalM3U8URL, prox
 		baseUrlForRelativePaths = parsedBaseURL.String()
 	}
 
+	refererSuffix := ""
+	if referer != "" {
+		refererSuffix = "&referer=" + url.QueryEscape(referer)
+	}
+
 	for scanner.Scan() {
 		line := scanner.Text()
 		modifiedLine := line
@@ -69,18 +75,18 @@ func ProcessM3U8Stream(reader io.Reader, writer io.Writer, originalM3U8URL, prox
 		} else if strings.HasSuffix(trimmedLine, ".m3u8") || strings.HasSuffix(trimmedLine, ".ts") {
 			// These are segments or nested playlists, assumed relative to the M3U8's base URL
 			if isAbsoluteURL(trimmedLine) {
-				modifiedLine = proxyPrefix + url.QueryEscape(trimmedLine)
+				modifiedLine = proxyPrefix + url.QueryEscape(trimmedLine) + refererSuffix
 			} else {
 				// Construct absolute URL from baseUrlForRelativePaths and the relative line
 				absoluteSegmentURL := resolveURL(baseUrlForRelativePaths, trimmedLine)
-				modifiedLine = proxyPrefix + url.QueryEscape(absoluteSegmentURL)
+				modifiedLine = proxyPrefix + url.QueryEscape(absoluteSegmentURL) + refererSuffix
 			}
 		} else if IsAllowedStaticExtension(trimmedLine) {
 			if isAbsoluteURL(trimmedLine) {
-				modifiedLine = proxyPrefix + url.QueryEscape(trimmedLine)
+				modifiedLine = proxyPrefix + url.QueryEscape(trimmedLine) + refererSuffix
 			} else {
 				absoluteResourceURL := resolveURL(baseUrlForRelativePaths, trimmedLine)
-				modifiedLine = proxyPrefix + url.QueryEscape(absoluteResourceURL)
+				modifiedLine = proxyPrefix + url.QueryEscape(absoluteResourceURL) + refererSuffix
 			}
 		}
 

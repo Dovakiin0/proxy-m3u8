@@ -135,8 +135,11 @@ func M3U8ProxyHandler(c echo.Context) error {
 	if refererHeader != "" {
 		req.Header.Set("Referer", refererHeader)
 		req.Header.Set("Origin", refererHeader)
+	} else if config.Env.DefaultReferer != "" {
+		req.Header.Set("Referer", config.Env.DefaultReferer)
+		req.Header.Set("Origin", strings.TrimSuffix(config.Env.DefaultReferer, "/"))
 	} else {
-		// Use the target's own origin as referer to appear as same-origin request
+		// Fall back to the target's own origin as a last resort
 		req.Header.Set("Referer", targetOrigin+"/")
 		req.Header.Set("Origin", targetOrigin)
 	}
@@ -181,12 +184,22 @@ func M3U8ProxyHandler(c echo.Context) error {
 		proxyRoutePath := strings.TrimPrefix(c.Path(), "/")
 		urlPrefix := proxyRoutePath + "?url="
 
-		err = utils.ProcessM3U8Stream(bytes.NewReader(rawBodyBytes), &transformedBodyBuffer, targetURL, urlPrefix)
+		// Determine which referer to propagate into rewritten URLs
+		propagatedReferer := refererHeader
+		if propagatedReferer == "" {
+			propagatedReferer = config.Env.DefaultReferer
+		}
+
+		err = utils.ProcessM3U8Stream(bytes.NewReader(rawBodyBytes), &transformedBodyBuffer, targetURL, urlPrefix, propagatedReferer)
 		if err != nil {
 			log.Printf("Error processing M3U8 stream for %s: %v", targetURL, err)
 			return c.String(http.StatusInternalServerError, "Error transforming M3U8 content")
 		}
 		responseBodyBytes = transformedBodyBuffer.Bytes()
+		// Force correct Content-Type for m3u8 playlists regardless of what upstream sent
+		if isM3U8 {
+			responseHeadersToClient.Set("Content-Type", "application/x-mpegURL")
+		}
 		// Content-Length is not set from upstream as body is transformed
 	} else {
 		// No transformation or non-OK status
