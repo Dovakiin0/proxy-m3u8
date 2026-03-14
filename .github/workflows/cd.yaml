@@ -45,7 +45,7 @@ jobs:
           git clone --depth 1 "https://x-access-token:${APP_TOKEN}@github.com/${INFRA_REPO}.git" infra
           cd infra
 
-          sed -i "s|${IMAGE}:[a-zA-Z0-9._-]*|${IMAGE}:${TAG}|g" apps/kitsune/docker-compose.yml
+          sed -i "s|${IMAGE}:[a-zA-Z0-9._-]*|${IMAGE}:${TAG}|g" apps/proxy-m3u8/docker-compose.yml
 
           git add .
           git commit -m "chore(deploy): bump proxy-m3u8 to ${TAG}" || exit 0
