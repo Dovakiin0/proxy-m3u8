@@ -25,7 +25,7 @@ func getEnv(varName, defaultValue string) string {
 func InitConfig() {
 	Env = envConfig{
 		Port:           getEnv("PORT", "8080"),
-		CorsDomain:     getEnv("CORS_DOMAIN", "*"),
+		CorsDomain:     getEnv("CORS_DOMAIN", "learningstuffforfun.online"),
 		RedisURL:       getEnv("REDIS_URL", ""),
 		RedisPassword:  getEnv("REDIS_PASSWORD", ""),
 		DefaultReferer: getEnv("DEFAULT_REFERER", ""),
