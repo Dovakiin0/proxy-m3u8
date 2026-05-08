@@ -31,3 +31,10 @@ func InitConfig() {
 		DefaultReferer: getEnv("DEFAULT_REFERER", ""),
 	}
 }
+CORS_DOMAIN=localhost:3000
+PORT=4040
+DEFAULT_REFERER=https://megacloud.club/
+
+#Optional
+REDIS_URL=localhost:6379
+REDIS_PASSWORD= 
